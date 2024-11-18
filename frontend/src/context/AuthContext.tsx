@@ -1,56 +1,41 @@
-import { useState, useEffect, ReactNode } from 'react'
-import { AuthContext, User } from './AuthContext.types'
+// src/context/AuthContext.tsx
+import { useState, ReactNode } from 'react'
+import { AuthContext } from './AuthContext.context'
+import { User } from './AuthContext.types'
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [user, setUser] = useState<User | null>(null)
 
-  useEffect(() => {
-    const verifyToken = async () => {
-        if (token) {
-          try {
-            const response = await fetch('http://localhost:8000/api/auth/verify/', {
-              method: 'POST', // Changed from GET to POST
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ token }) // Add this
-            })
-            if (!response.ok) {
-              logout()
-            }
-          } catch {
-            logout()
-          }
-        }
-      }
-
-    verifyToken()
-  }, [token])
-
   const login = (newToken: string) => {
+    console.log('Login called with token:', newToken)
     localStorage.setItem('token', newToken)
     setToken(newToken)
   }
 
-  
-
   const logout = () => {
+    console.log('Logout called')
     localStorage.removeItem('token')
     setToken(null)
     setUser(null)
   }
 
+  const value = {
+    token,
+    user,
+    login,
+    logout,
+    isAuthenticated: !!token
+  }
+
+  console.log('AuthProvider state:', value)
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        token, 
-        user, 
-        login, 
-        logout,
-        isAuthenticated: !!token 
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

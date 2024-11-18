@@ -3,11 +3,53 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from .models import Sighting
 from .serializers import SightingSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.contrib.gis.db.models import Count
+from django.contrib.gis.db.models.functions import SnapToGrid
+from .serializers import SightingSerializer
+from django.utils import timezone
+from django.db.models import Count
+from ..users.models import Achievement, UserAchievement
+
 
 class SightingViewSet(viewsets.ModelViewSet):
     queryset = Sighting.objects.all()
     serializer_class = SightingSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Changed this
+    permission_classes = [permissions.IsAuthenticated] 
+
+    @action(detail=False, methods=['GET'])
+    def my(self, request):
+        queryset = self.get_queryset().filter(user=request.user)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['GET'])
+    def stats(self, request):
+        total_reports = Sighting.objects.count()
+        user_reports = Sighting.objects.filter(user=request.user).count()
+
+        # Get top areas using PostGIS
+        top_areas = (
+            Sighting.objects
+            .annotate(area=SnapToGrid('location', 0.01))
+            .values('area')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:5]
+        )
+
+        return Response({
+            'totalReports': total_reports,
+            'userReports': user_reports,
+            'topAreas': [
+                {
+                    'area': f"{area['area'].coords[0]:.4f}, {area['area'].coords[1]:.4f}",
+                    'count': area['count']
+                }
+                for area in top_areas
+            ]
+        })
+    
 
     def get_queryset(self):
         queryset = Sighting.objects.all()
@@ -29,17 +71,35 @@ class SightingViewSet(viewsets.ModelViewSet):
         sighting = serializer.save(user=self.request.user)
         # Update user points
         user = self.request.user
-        user.points += 10
-        if 'photo' in self.request.FILES:
-            user.points += 5
-
-        # Update rank based on points
-        if user.points >= 100:
-            user.rank = 'MASTER'
-        elif user.points >= 50:
-            user.rank = 'HUNTER'
-        elif user.points >= 20:
-            user.rank = 'SCOUT'
-
+        
+        # Update user stats
+        user.reports_count += 1
+        user.points += 10  # Base points for reporting
         user.save()
+        
+        # Check achievements
+        self.check_achievements(user, sighting)
+        
         return sighting
+    
+    def check_achievements(self, user, sighting):
+        # First sighting achievement
+        if user.reports_count == 1:
+            achievement = Achievement.objects.get(name='First Sighting')
+            UserAchievement.objects.create(user=user, achievement=achievement)
+            user.points += achievement.points
+        
+        # Time-based achievements
+        hour = timezone.localtime(sighting.created_at).hour
+        if hour < 7:
+            achievement = Achievement.objects.get(name='Early Bird')
+            UserAchievement.objects.get_or_create(user=user, achievement=achievement)
+            user.points += achievement.points
+        elif hour >= 22:
+            achievement = Achievement.objects.get(name='Night Owl')
+            UserAchievement.objects.get_or_create(user=user, achievement=achievement)
+            user.points += achievement.points
+        
+        # Update user rank based on points
+        user.update_rank()
+        user.save()

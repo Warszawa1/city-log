@@ -24,17 +24,25 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
 from backend.apps.sightings.views import SightingViewSet
 from backend.apps.users.views import UserViewSet, RegisterView, LoginView
+from django.http import JsonResponse
+from backend.apps.users.views import UserAchievementsView
+
 
 
 router = DefaultRouter()
 router.register(r'sightings', SightingViewSet)
 router.register(r'leaderboard', UserViewSet)
 
+def test_api(request):
+    return JsonResponse({"message": "API is working"})
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/test/', test_api, name='test-api'),
     path('api/auth/register/', RegisterView.as_view()),
     path('api/auth/login/', LoginView.as_view()),
     path('api/auth/verify/', TokenVerifyView.as_view(), name='verify'),
     path('api/auth/refresh/', TokenRefreshView.as_view()),
+    path('api/users/achievements/', UserAchievementsView.as_view()),
     path('api/', include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

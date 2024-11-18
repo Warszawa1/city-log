@@ -4,19 +4,26 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   server: {
-    host: '0.0.0.0',  // Add this to allow external access
+    host: '0.0.0.0',
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.121:8000', 
+        target: 'http://192.168.0.121:8000',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        configure: (proxy) => {  // Removed unused parameter
+          proxy.on('error', (err) => {  // Removed unused parameters
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (_, req) => {  // Used underscore for unused parameter
+            console.log('Sending Request:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req) => {  // Removed unused parameter
+            console.log('Received Response:', proxyRes.statusCode, req.url);
+          });
+        },
       }
     }
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 5173
   },
 
   plugins: [

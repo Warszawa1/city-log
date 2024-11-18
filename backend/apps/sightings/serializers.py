@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.gis.geos import Point
 from .models import Sighting
 import logging
+from ..users.models import Achievement
+
 
 class SightingSerializer(serializers.ModelSerializer):
     longitude = serializers.FloatField(write_only=True)
@@ -31,3 +33,10 @@ class SightingSerializer(serializers.ModelSerializer):
             **validated_data  # user will be added in the view
         )
         return sighting
+    
+class AchievementSerializer(serializers.ModelSerializer):
+    earned_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = Achievement
+        fields = ['id', 'name', 'description', 'points', 'icon', 'earned_at']
