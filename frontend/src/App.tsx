@@ -6,9 +6,12 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { Map } from './components/Map'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { Navigation } from './components/Navigation'
+import { Navigation } from './components/Navigation/index'
 import { StatsView } from './components/StatsView'
 import { Suspense } from 'react'
+import { useState, useEffect } from 'react'
+import { SplashScreen } from './components/SplashScreen'
+
 
 // Verify token is set
 const token = import.meta.env.VITE_MAPBOX_TOKEN
@@ -20,6 +23,22 @@ mapboxgl.accessToken = token
 
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Check if it's the first visit
+    const hasVisited = localStorage.getItem('hasVisited')
+    if (!hasVisited) {
+      localStorage.setItem('hasVisited', 'true')
+    } else {
+      setIsLoading(false)
+    }
+  }, [])
+
+  if (isLoading) {
+    return <SplashScreen />
+  }
+  
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <AuthProvider>

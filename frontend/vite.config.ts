@@ -8,20 +8,20 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.121:8000',
+        target: 'http://0.0.0.0:8000',
         changeOrigin: true,
         secure: false,
-        configure: (proxy) => {  // Removed unused parameter
-          proxy.on('error', (err) => {  // Removed unused parameters
-            console.log('proxy error', err);
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.log('Proxy error:', err);
           });
-          proxy.on('proxyReq', (_, req) => {  // Used underscore for unused parameter
+          proxy.on('proxyReq', (_, req) => {
             console.log('Sending Request:', req.method, req.url);
           });
-          proxy.on('proxyRes', (proxyRes, req) => {  // Removed unused parameter
+          proxy.on('proxyRes', (proxyRes, req) => {
             console.log('Received Response:', proxyRes.statusCode, req.url);
           });
-        },
+        }
       }
     }
   },
@@ -39,19 +39,55 @@ export default defineConfig({
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'  // Add this for better Android integration
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'  // Add this for better Android integration
           }
         ],
         background_color: '#1E293B',
         display: 'standalone',
         scope: '/',
         start_url: '/',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        // Add these for better Android integration
+        categories: ['utilities', 'maps'],
+        shortcuts: [
+          {
+            name: "Report Rat",
+            short_name: "Report",
+            description: "Report a new rat sighting",
+            url: "/",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module'  // Add this for better dev experience
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [  // Add this for better offline support
+          {
+            urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'mapbox-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       }
     })
   ]

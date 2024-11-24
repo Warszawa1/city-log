@@ -1,15 +1,17 @@
 import { createContext } from 'react'
 
 export interface User {
+  id: number;
   username: string;
   points: number;
   rank: string;
+  reports_count: number;
 }
 
 export interface AuthContextType {
-  token: string | null;
   user: User | null;
-  login: (token: string) => void;
+  token: string | null;
+  login: (token: string, userData: User) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }

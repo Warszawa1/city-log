@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
 
 interface Report {
   id: number
@@ -13,6 +14,7 @@ interface Report {
 export function ReportsList() {
   const [reports, setReports] = useState<Report[]>([])
   const { token } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -33,6 +35,16 @@ export function ReportsList() {
     fetchReports()
   }, [token])
 
+  const handleViewOnMap = (coordinates: [number, number]) => {
+    // Navigate to map view with state
+    navigate('/', {
+      state: {
+        focusCoordinates: coordinates,
+        zoom: 18 // Higher zoom level for detailed view
+      }
+    })
+  }
+
   return (
     <div className="space-y-4">
       {reports.map(report => (
@@ -45,10 +57,8 @@ export function ReportsList() {
               <p className="mt-1">{report.description}</p>
             </div>
             <button 
-              onClick={() => {
-                // Will add map centering later
-              }}
-              className="text-blue-400 text-sm"
+              onClick={() => handleViewOnMap(report.location.coordinates)}
+              className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
             >
               View on map
             </button>

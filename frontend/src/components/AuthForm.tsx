@@ -1,153 +1,193 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { AlertCircle } from 'lucide-react'
 
+interface LoginResponse {
+  access: string;
+  user: {
+    id: number;
+    username: string;
+    points: number;
+    rank: string;
+    reports_count: number;
+  };
+}
 
-// Console log at the start of the component to verify it's loading
-console.log('AuthForm component loading')
+interface AuthError {
+  detail: string;
+}
 
 export function AuthForm() {
-    console.log('AuthForm rendering')
-    const [mode, setMode] = useState<'login' | 'register'>('login')
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-    const [passwordConfirm, setPasswordConfirm] = useState('')
-    const navigate = useNavigate()
-    const { login } = useAuth()
-  
-    // Add a simple click handler to test button functionality
-    const handleTestClick = () => {
-      console.log('Test button clicked')
-      alert('Test button clicked')
-    }
-  
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        console.log('Form submitted')
-        
-        try {
-          alert('Starting login process...')
-          
-          const endpoint = mode === 'login' ? 'login' : 'register'
-          const url = `/api/auth/${endpoint}/`
-          
-          const requestData = mode === 'login' ? 
-            { username, password } : 
-            { username, password, password_confirm: passwordConfirm }
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
+  const { login } = useAuth()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    try {
+      const endpoint = mode === 'login' ? 'login' : 'register'
+      const url = `/api/auth/${endpoint}/`
       
-          console.log('Sending request:', { url, requestData })
+      console.log('Starting auth request to:', url)
       
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-          })
+      const requestData = mode === 'login' 
+        ? { username, password }
+        : { username, password, password_confirm: passwordConfirm }
+
+      // Create AbortController for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
       
-          console.log('Response received:', response.status)
-      
-          const data = await response.text()
-          console.log('Raw response data:', data)
-      
-          if (response.ok) {
-            try {
-              const jsonData = JSON.parse(data)
-              console.log('Parsed JSON data:', jsonData)
-              
-              if (mode === 'login' && jsonData.access) {
-                console.log('Login successful, calling login() with token')
-                login(jsonData.access)
-                console.log('Login complete, attempting navigation')
-                navigate('/')
-                console.log('Navigation called')
-              } else {
-                console.log('Switching to login mode')
-                setMode('login')
-              }
-            } catch (parseError) {
-              console.error('JSON parse error:', parseError)
-              alert('Error parsing server response')
-            }
-          } else {
-            console.error('Login failed:', data)
-            alert(`Login failed: ${data}`)
-          }
-        } catch (error) {
-          console.error('Request error:', error)
-          alert(`Error: ${error}`)
-        }
+      console.log('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      const text = await response.text()
+      console.log('Raw response text:', text)
+
+      if (!text) {
+        throw new Error('Server returned an empty response')
       }
-  
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
-        <div className="bg-slate-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-6 text-white">
-            {mode === 'login' ? 'Login' : 'Register'}
-          </h2>
-  
-          {/* Test button outside the form */}
-          <button
-            onClick={handleTestClick}
-            className="w-full p-4 mb-4 bg-green-600 text-white rounded text-lg"
-          >
-            Test Button (Click Me!)
-          </button>
-          
-          <form 
-            onSubmit={(e) => {
-              console.log('Form submit triggered')
-              handleSubmit(e)
-            }} 
-            className="space-y-4"
-          >
+
+      let data: LoginResponse | AuthError
+      try {
+        data = JSON.parse(text)
+        console.log('Parsed response data:', data)
+      } catch (e) {
+        console.error('JSON parse error:', e)
+        throw new Error('Invalid response format from server')
+      }
+
+      if (!response.ok) {
+        const errorData = data as AuthError
+        throw new Error(errorData.detail || 'Authentication failed')
+      }
+
+      // Type guard to ensure we have LoginResponse
+      if ('access' in data && 'user' in data) {
+        console.log('Login successful, navigating...')
+        login(data.access, data.user)
+        navigate('/')
+      } else {
+        throw new Error('Invalid response format: missing token or user data')
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      if (error.name === 'AbortError') {
+        setError('Request timed out. Please try again.')
+      } else {
+        setError(error instanceof Error ? error.message : 'An unexpected error occurred')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+      <div className="bg-slate-800 p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-white">
+          {mode === 'login' ? 'Login' : 'Register'}
+        </h2>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 text-red-500 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="username" className="text-sm text-slate-300">Username</label>
             <input
+              id="username"
               type="text"
-              placeholder="Username"
               value={username}
-              onChange={(e) => {
-                console.log('Username changed:', e.target.value)
-                setUsername(e.target.value)
-              }}
-              className="w-full p-4 rounded bg-slate-700 text-white text-lg"
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full p-3 rounded bg-slate-700 text-white border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+              disabled={loading}
             />
+          </div>
+          
+          <div className="space-y-1">
+            <label htmlFor="password" className="text-sm text-slate-300">Password</label>
             <input
+              id="password"
               type="password"
-              placeholder="Password"
               value={password}
-              onChange={(e) => {
-                console.log('Password changed:', e.target.value)
-                setPassword(e.target.value)
-              }}
-              className="w-full p-4 rounded bg-slate-700 text-white text-lg"
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 rounded bg-slate-700 text-white border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+              disabled={loading}
             />
-            {mode === 'register' && (
+          </div>
+          
+          {mode === 'register' && (
+            <div className="space-y-1">
+              <label htmlFor="confirm-password" className="text-sm text-slate-300">Confirm Password</label>
               <input
+                id="confirm-password"
                 type="password"
-                placeholder="Confirm Password"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
-                className="w-full p-4 rounded bg-slate-700 text-white text-lg"
+                className="w-full p-3 rounded bg-slate-700 text-white border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                disabled={loading}
               />
-            )}
-            <button 
-              type="submit"
-              className="w-full p-4 bg-blue-600 text-white rounded text-lg"
-            >
-              {mode === 'login' ? 'Login' : 'Register'}
-            </button>
-          </form>
+            </div>
+          )}
           
-          <button
-            onClick={() => {
-              console.log('Mode changed')
-              setMode(mode === 'login' ? 'register' : 'login')
-            }}
-            className="w-full mt-4 p-4 text-blue-400 hover:text-blue-300 text-lg"
+          <button 
+            type="submit"
+            disabled={loading}
+            className={`w-full p-3 bg-blue-600 text-white rounded font-medium
+              hover:bg-blue-700 transition-colors
+              ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {mode === 'login' ? 'Need an account?' : 'Already have an account?'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Processing...
+              </span>
+            ) : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
-        </div>
+        </form>
+        
+        <button
+          onClick={() => {
+            setMode(mode === 'login' ? 'register' : 'login')
+            setError(null)
+          }}
+          className="w-full mt-4 p-3 text-blue-400 hover:text-blue-300 transition-colors text-sm"
+          disabled={loading}
+        >
+          {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Sign in'}
+        </button>
       </div>
-    )
-  }
+    </div>
+  )
+}

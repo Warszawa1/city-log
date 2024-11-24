@@ -48,9 +48,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -144,6 +144,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = [
     'localhost',
+    '0.0.0.0',
     '127.0.0.1',
     '192.168.0.121',  # Updated IP
     '*'
@@ -155,9 +156,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.0.121:5173",  # Updated IP
     "http://192.168.0.204:5173",
 ]
-
-
-
 
 
 CORS_ALLOWED_METHODS = [
@@ -220,3 +218,31 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
+
+PWA_APP_NAME = 'RatLogger'
+PWA_APP_DESCRIPTION = "Track and report rat sightings in your area"
+PWA_APP_THEME_COLOR = '#1E293B'
+PWA_APP_BACKGROUND_COLOR = '#0F172A'
+PWA_APP_DISPLAY = 'standalone'
+PWA_APP_SCOPE = '/'
+PWA_APP_ORIENTATION = 'portrait'
+PWA_APP_START_URL = '/'
+PWA_APP_STATUS_BAR_COLOR = 'default'
+PWA_APP_ICONS = [
+    {
+        'src': '/static/images/icons/icon-192x192.png',
+        'sizes': '192x192',
+        'type': 'image/png'
+    },
+    {
+        'src': '/static/images/icons/icon-512x512.png',
+        'sizes': '512x512',
+        'type': 'image/png'
+    }
+]
+PWA_APP_SPLASH_SCREEN = [
+    {
+        'src': '/static/images/splash/splash-640x1136.png',
+        'media': '(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)'
+    }
+]

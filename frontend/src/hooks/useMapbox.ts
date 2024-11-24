@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import { useAuth } from './useAuth'
 
+
 interface Sighting {
   id: number;
   location: {
@@ -79,50 +80,25 @@ export default function useMapbox() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           if (mapRef.current) {
-          mapRef.current?.setCenter([
-            position.coords.longitude,
-            position.coords.latitude
-          ]);
-        }
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          // Optionally set a default center if location access fails
-          if (mapRef.current) {
-            mapRef.current.setCenter([4.3517, 50.8503]); // Brussels
+            mapRef.current.setCenter([
+              position.coords.longitude,
+              position.coords.latitude
+            ])
           }
         },
-      );
-
+        (error) => {
+          console.error('Geolocation error:', error)
+          // Keep default center if location access fails
+          if (mapRef.current) {
+            mapRef.current.setCenter([4.3517, 50.8503]) // Brussels
+          }
+        }
+      )
       loadMarkers()
     })
 
-    // Click handler for adding new rats
-    mapRef.current.on('click', async (e) => {
-      if (!token) return
-
-      try {
-        const response = await fetch('http://192.168.0.121:8000/api/sightings/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            longitude: e.lngLat.lng,
-            latitude: e.lngLat.lat,
-            description: 'Rat spotted here'
-          })
-        })
-
-        if (response.ok) {
-          loadMarkers() // Reload all markers
-        }
-      } catch (error) {
-        console.error('Error saving marker:', error)
-      }
-    })
-  }, [token, loadMarkers])
+    return mapRef.current
+  }, [loadMarkers])
 
   // Initialize once
   useEffect(() => {
@@ -143,5 +119,14 @@ export default function useMapbox() {
     return () => clearInterval(interval)
   }, [token, loadMarkers])
 
-  return { markers, reloadMarkers: loadMarkers }
+  
+  
+  
+
+
+  return {
+    markers,
+    map: mapRef.current,
+    reloadMarkers: loadMarkers
+  }
 }
